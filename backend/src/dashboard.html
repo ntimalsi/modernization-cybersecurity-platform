@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>MVP Dashboard</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 24px; }
+      .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .card { border: 1px solid #ddd; border-radius: 10px; padding: 12px; }
+      .muted { color: #666; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+      th, td { border-bottom: 1px solid #eee; padding: 8px; text-align: left; }
+      .badge { display: inline-block; padding: 2px 8px; border: 1px solid #ddd; border-radius: 999px; font-size: 12px; }
+      input { padding: 8px; width: 420px; }
+      button { padding: 8px 12px; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <h2>Unified Modernization & Cybersecurity MVP</h2>
+    <p class="muted">Enter an Institution ID to load modernization + cybersecurity posture.</p>
+
+    <div>
+      <input id="inst" placeholder="institutionId (create one via POST /institutions)" />
+      <button onclick="loadAll()">Load</button>
+    </div>
+
+    <h3>Overview</h3>
+    <div class="row" id="cards"></div>
+
+    <h3>Drift Events (latest 50)</h3>
+    <table id="driftTable">
+      <thead><tr><th>Time</th><th>Asset</th><th>Summary</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <h3>Zero Trust Checks</h3>
+    <table id="ztTable">
+      <thead><tr><th>Check</th><th>Status</th><th>Evidence</th></tr></thead>
+      <tbody></tbody>
+    </table>
+
+    <script>
+      async function loadAll() {
+        const institutionId = document.getElementById("inst").value.trim();
+        const dash = await fetch(`/dashboard?institutionId=${institutionId}`).then(r => r.json());
+        const drift = await fetch(`/drift?institutionId=${institutionId}`).then(r => r.json());
+        const zt = await fetch(`/zerotrust?institutionId=${institutionId}`).then(r => r.json());
+
+        renderCards(dash);
+        renderDrift(drift.events || []);
+        renderZT(zt.checks || [], zt.score || 0);
+      }
+
+      function renderCards(d) {
+        const cards = document.getElementById("cards");
+        cards.innerHTML = "";
+
+        const items = [
+          ["Assets", d?.totals?.assets ?? 0],
+          ["Drift Events", d?.totals?.driftEvents ?? 0],
+          ["Zero Trust Score", (d?.zeroTrustScore ?? 0) + "%"],
+          ["Visibility Score", (d?.modernization?.visibilityScore ?? 0) + "%"],
+          ["Lifecycle Score", (d?.modernization?.lifecycleScore ?? 0) + "%"],
+          ["Standardization Score", (d?.modernization?.standardizationScore ?? 0) + "%"],
+          ["Logging Readiness", (d?.modernization?.loggingReadinessScore ?? 0) + "%"],
+          ["Types", JSON.stringify(d?.byType ?? {})]
+        ];
+
+        for (const [k, v] of items) {
+          const el = document.createElement("div");
+          el.className = "card";
+          el.innerHTML = `<div class="muted">${k}</div><div style="font-size:22px;margin-top:6px">${v}</div>`;
+          cards.appendChild(el);
+        }
+      }
+
+      function renderDrift(events) {
+        const tbody = document.querySelector("#driftTable tbody");
+        tbody.innerHTML = "";
+        for (const e of events) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${new Date(e.createdAt).toLocaleString()}</td><td>${e.hostname || e.ip || "(unknown)"}</td><td>${e.summary}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+
+      function renderZT(checks, score) {
+        const tbody = document.querySelector("#ztTable tbody");
+        tbody.innerHTML = "";
+        const headerRow = document.createElement("tr");
+        headerRow.innerHTML = `<td colspan="3"><span class="badge">Score: ${score}%</span></td>`;
+        tbody.appendChild(headerRow);
+
+        for (const c of checks) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td>${c.title}</td><td>${c.passed ? "✅ Passed" : "❌ Missing"}</td><td>${c.evidence || ""}</td>`;
+          tbody.appendChild(tr);
+        }
+      }
+    </script>
+  </body>
+</html>

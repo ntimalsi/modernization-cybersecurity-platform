@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Institution {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  assets    Asset[]
+}
+
+model Asset {
+  id            String   @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  hostname      String?
+  ip            String?
+  assetType     String   // server, network, cloud, iot, app, unknown
+  os            String?
+  owner         String?
+  tags          String?
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  baselines     ConfigSnapshot[] @relation("baseline")
+  currents      ConfigSnapshot[] @relation("current")
+  driftEvents   DriftEvent[]
+}
+
+model ConfigSnapshot {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id])
+
+  kind      String   // baseline | current
+  data      Json
+  createdAt DateTime @default(now())
+}
+
+model DriftEvent {
+  id        String   @id @default(cuid())
+  assetId   String
+  asset     Asset    @relation(fields: [assetId], references: [id])
+  summary   String
+  diff      Json
+  createdAt DateTime @default(now())
+}
+
+model ZeroTrustCheck {
+  id            String   @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  key           String
+  title         String
+  passed        Boolean
+  evidence      String?
+  createdAt     DateTime @default(now())
+}
+
+model ScoreSnapshot {
+  id            String   @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  visibilityScore       Int
+  lifecycleScore        Int
+  standardizationScore  Int
+  loggingReadinessScore Int
+  zeroTrustScore        Int
+
+  createdAt DateTime @default(now())
+}
