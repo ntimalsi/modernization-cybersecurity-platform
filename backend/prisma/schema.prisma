@@ -11,25 +11,31 @@ model Institution {
   id        String   @id @default(cuid())
   name      String
   createdAt DateTime @default(now())
-  assets    Asset[]
+
+  assets          Asset[]
+  zeroTrustChecks ZeroTrustCheck[]
+  modernizationSnapshots ModernizationSnapshot[]
+  cybersecuritySnapshots  CybersecuritySnapshot[]
 }
 
 model Asset {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
   institutionId String
-  institution   Institution @relation(fields: [institutionId], references: [id])
-  hostname      String?
-  ip            String?
-  assetType     String   // server, network, cloud, iot, app, unknown
-  os            String?
-  owner         String?
-  tags          String?
-  lastSeenAt    DateTime @default(now())
-  createdAt     DateTime @default(now())
+  institution   Institution  @relation(fields: [institutionId], references: [id])
 
-  baselines     ConfigSnapshot[] @relation("baseline")
-  currents      ConfigSnapshot[] @relation("current")
-  driftEvents   DriftEvent[]
+  hostname   String?
+  ip         String?
+  assetType  String   // server, network, cloud, iot, app, unknown
+  os         String?
+  owner      String?
+  tags       String?  // comma-separated demo tags, e.g. "logs:on,siem:on"
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  snapshots   ConfigSnapshot[]
+  driftEvents DriftEvent[]
+
+  @@index([institutionId, createdAt])
 }
 
 model ConfigSnapshot {
@@ -40,30 +46,40 @@ model ConfigSnapshot {
   kind      String   // baseline | current
   data      Json
   createdAt DateTime @default(now())
+
+  @@index([assetId, kind])
+  @@index([assetId, createdAt])
 }
 
 model DriftEvent {
   id        String   @id @default(cuid())
   assetId   String
   asset     Asset    @relation(fields: [assetId], references: [id])
+
   summary   String
   diff      Json
   createdAt DateTime @default(now())
+
+  @@index([assetId, createdAt])
 }
 
 model ZeroTrustCheck {
-  id            String   @id @default(cuid())
+  id            String      @id @default(cuid())
   institutionId String
   institution   Institution @relation(fields: [institutionId], references: [id])
-  key           String
-  title         String
-  passed        Boolean
-  evidence      String?
-  createdAt     DateTime @default(now())
+
+  key       String
+  title     String
+  passed    Boolean
+  evidence  String?
+  createdAt DateTime @default(now())
+
+  @@index([institutionId, key])
+  @@index([institutionId, createdAt])
 }
 
-model ScoreSnapshot {
-  id            String   @id @default(cuid())
+model ModernizationSnapshot {
+  id            String      @id @default(cuid())
   institutionId String
   institution   Institution @relation(fields: [institutionId], references: [id])
 
@@ -71,7 +87,20 @@ model ScoreSnapshot {
   lifecycleScore        Int
   standardizationScore  Int
   loggingReadinessScore Int
-  zeroTrustScore        Int
+  assetCount            Int
 
   createdAt DateTime @default(now())
+  @@index([institutionId, createdAt])
+}
+
+model CybersecuritySnapshot {
+  id            String      @id @default(cuid())
+  institutionId String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+
+  zeroTrustScore Int
+  driftEvents    Int
+
+  createdAt DateTime @default(now())
+  @@index([institutionId, createdAt])
 }

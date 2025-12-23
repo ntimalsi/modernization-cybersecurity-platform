@@ -1,11 +1,16 @@
 import Fastify from "fastify";
+import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
 import fp from "fastify-plugin";
 import { PrismaClient } from "@prisma/client";
 
-import { assetsRoutes } from "./routes/assets.js";
-import { ingestRoutes } from "./routes/ingest.js";
-import { metricsRoutes } from "./routes/metrics.js";
+import { institutionsRoutes } from "./routes/foundation.institutions.js";
+import { assetsRoutes } from "./routes/foundation.assets.js";
+import { ingestRoutes } from "./routes/foundation.ingest.js";
+import { modernizationRoutes } from "./routes/modernization.dashboard.js";
+import { cybersecurityDashboardRoutes } from "./routes/cybersecurity.dashboard.js";
+import { driftRoutes } from "./routes/cybersecurity.drift.js";
+import { zeroTrustRoutes } from "./routes/cybersecurity.zerotrust.js";
 
 const prisma = new PrismaClient();
 
@@ -20,18 +25,22 @@ const prismaPlugin = fp(async (app) => {
 });
 
 const app = Fastify({ logger: true });
-app.register(multipart);
-app.register(prismaPlugin);
 
-app.get("/", async (_req, reply) => {
-  reply.type("text/html").send(await import("fs").then(fs => fs.readFileSync(new URL("./dashboard.html", import.meta.url), "utf-8")));
+await app.register(cors, {
+  origin: process.env.CORS_ORIGIN ?? true
 });
+await app.register(multipart);
+await app.register(prismaPlugin);
 
 app.get("/health", async () => ({ ok: true }));
 
-app.register(assetsRoutes);
-app.register(ingestRoutes);
-app.register(metricsRoutes);
+app.register(institutionsRoutes, { prefix: "/api" });
+app.register(assetsRoutes, { prefix: "/api" });
+app.register(ingestRoutes, { prefix: "/api" });
+app.register(modernizationRoutes, { prefix: "/api" });
+app.register(cybersecurityDashboardRoutes, { prefix: "/api" });
+app.register(driftRoutes, { prefix: "/api" });
+app.register(zeroTrustRoutes, { prefix: "/api" });
 
 const port = Number(process.env.PORT || 8080);
 app.listen({ port, host: "0.0.0.0" }).catch((err) => {
